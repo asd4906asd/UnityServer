@@ -10,6 +10,8 @@ using System.Threading;
 using System.Windows;
 using System.IO;
 
+using LitJson;
+
 namespace UnityServer
 {
     class Program
@@ -49,11 +51,11 @@ namespace UnityServer
             Internet_Struct internet;
             internet.ip = "192.168.88.53";
             internet.port = 62222;
-            IPAddress ip = new IPAddress(new byte[] { 192, 168, 88, 53 });
 
             //Socket公式
-            Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);         
+            Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             EndPoint point = new IPEndPoint(IPAddress.Parse(internet.ip), internet.port);
+            //TcpListener point = new TcpListener(IPAddress.Parse(internet.ip), internet.port);
             server.Bind(point);
             server.Listen(10);
 
@@ -75,7 +77,11 @@ namespace UnityServer
             socketList.Add(client);
             Console.WriteLine("客戶IP訊息 : " + client.RemoteEndPoint);
             string msg = "系統訊息:歡迎來到UnityServer";
-            byte[] data = Encoding.UTF8.GetBytes(msg);
+            JsonClass json = new JsonClass();
+            json.contentClass = "System";
+            json.content = msg;
+            string systemMsg = JsonMapper.ToJson(json);
+            byte[] data = Encoding.UTF8.GetBytes(systemMsg);
             client.Send(data);
             Thread t = new Thread(ReceiveMsg);
             t.Start(client);
@@ -117,7 +123,13 @@ namespace UnityServer
                 IPEndPoint po = mySocket.RemoteEndPoint as IPEndPoint;
                 string ip = po.Address.ToString();
                 //resMsg = ip + ":" + resMsg;
-                
+
+                /*JsonClass json = new JsonClass();
+                json = JsonMapper.ToObject<JsonClass>(resMsg);
+                if (json.contentClass == "System")
+                {
+                    Console.WriteLine(resMsg);
+                }*/
                 Console.WriteLine(resMsg);
                 sendAllMsg(resMsg);
             }

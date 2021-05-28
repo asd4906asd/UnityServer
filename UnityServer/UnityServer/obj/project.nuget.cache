@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "KOqN1TwKi+YpA6awxwg8FXRfuNNZ06FBKFA8d3Ha9Dscb5l717yL+Tz4WXW6duC24K8s7uuB7fM4iiH9BmrMCQ==",
+  "dgSpecHash": "rBkTYyMa9GivT/Z5szBO96sWtPy2dT7u3LUomCEX77linCbVb/Eu6Tv9Oi97a2zPVpXaJZyW+D1mZ7trwxFBgQ==",
   "success": true,
-  "projectFilePath": "D:\\C#Project\\C#應用程式\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
+  "projectFilePath": "D:\\C#Project\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

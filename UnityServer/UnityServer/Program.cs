@@ -19,6 +19,10 @@ namespace UnityServer
         //創建一清單 放客戶端
         static List<Socket> socketList = new List<Socket>();
 
+        static System.Timers.Timer GameTimer;
+
+        static public int GameTimeNum;
+
         //Ip & Port結構
         private struct Internet_Struct
         {
@@ -26,9 +30,48 @@ namespace UnityServer
             public int port;
         }
 
-        static System.Timers.Timer GameTimer;
+        #region Enum
 
-        static public int GameTimeNum;
+        public enum Players
+        {
+            //玩家類型
+            Player0,
+            Player1,
+
+            //以下結果用於判斷勝負以及操作結果
+            Win,
+            Lose,
+            Null,//用於操作失敗的回傳值(字首大寫以免被判定為關鍵字)
+        }
+
+        public enum MessageType
+        {
+            None,
+            HeartBeat,
+
+            Entroll,
+            CreateRoom,
+            EnterRoom,
+            ExitRoom,
+            StartGame,
+            Play,
+        }       
+
+        #endregion
+
+        [Serializable]
+        public class CreateRoom
+        {
+            public int RoomID;
+            public bool Suc;
+        }
+
+        [Serializable]
+        public class Entroll
+        {
+            public string Name;
+            public bool Suc;
+        }
 
         /// <summary>
         /// 這邊是主程式啦 我估計他只會執行一次

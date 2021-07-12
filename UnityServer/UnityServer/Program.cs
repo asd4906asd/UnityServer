@@ -11,6 +11,7 @@ using System.Windows;
 using System.IO;
 
 using LitJson;
+using UnityServerDLL;
 
 namespace UnityServer
 {
@@ -28,49 +29,6 @@ namespace UnityServer
         {
             public string ip;
             public int port;
-        }
-
-        #region Enum
-
-        public enum Players
-        {
-            //玩家類型
-            Player0,
-            Player1,
-
-            //以下結果用於判斷勝負以及操作結果
-            Win,
-            Lose,
-            Null,//用於操作失敗的回傳值(字首大寫以免被判定為關鍵字)
-        }
-
-        public enum MessageType
-        {
-            None,
-            HeartBeat,
-
-            Entroll,
-            CreateRoom,
-            EnterRoom,
-            ExitRoom,
-            StartGame,
-            Play,
-        }       
-
-        #endregion
-
-        [Serializable]
-        public class CreateRoom
-        {
-            public int RoomID;
-            public bool Suc;
-        }
-
-        [Serializable]
-        public class Entroll
-        {
-            public string Name;
-            public bool Suc;
         }
 
         /// <summary>
@@ -97,10 +55,10 @@ namespace UnityServer
 
             //Socket公式
             Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            EndPoint point = new IPEndPoint(IPAddress.Parse(internet.ip), internet.port);
+            IPEndPoint point = new IPEndPoint(IPAddress.Parse(internet.ip), internet.port);
             //TcpListener point = new TcpListener(IPAddress.Parse(internet.ip), internet.port);
             server.Bind(point);
-            server.Listen(10);
+            server.Listen(5);
 
             //開始非同步作業 做new AsyncCallback(AcceptClient) 對server做
             //應該是非同步的去新增伺服器端的客戶端
@@ -128,7 +86,7 @@ namespace UnityServer
             client.Send(data);
             Thread t = new Thread(ReceiveMsg);
             t.Start(client);
-            
+
             //假設我的假設是對的
             //上面的接收只會做到第一個人被接收
             //所以這邊接收的同時還要再槓一行
@@ -238,6 +196,100 @@ namespace UnityServer
         {
             //Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss}", e.SignalTime);
             GameTimeNum += 1;
+        }
+
+        /// <summary>
+        /// 獲取IPV4的方法
+        /// </summary>
+        /// <returns></returns>
+        public static string GetLocalIPV4()
+        {
+            string hostName = Dns.GetHostName();//取得主機名
+            IPHostEntry IPEntry = Dns.GetHostEntry(hostName);
+            for (int i = 0; i < IPEntry.AddressList.Length; i++)
+            {
+                if (IPEntry.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
+                {
+                    return IPEntry.AddressList[i].ToString();
+                }
+            }
+            return null;
+        }
+    }
+
+    public class Server
+    {
+        public static Dictionary<int, Room> Rooms;
+        public static List<Player> Players;
+        private static Socket _serverSocket;
+
+        Thread thread = new Thread(_Await) { IsBackground = true };
+        thread.Start();
+
+        private static void _Await()
+        {
+            Socket client = null;
+
+            try
+            {
+                client = _serverSocket.Accept();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+    }
+
+    public class Player
+    {
+        public Socket socket;
+        public string Name;
+        public bool InRoom;
+        public int RoomID;
+
+        public Player(Socket _socket)
+        {
+            socket = _socket;
+            Name = "Player Unknown";
+            InRoom = false;
+            RoomID = 0;
+        }
+
+        public void EnterRoom(int _roomID)
+        {
+            InRoom = true;
+            RoomID = _roomID;
+        }
+
+        public void ExitRoom()
+        {
+            InRoom = false;
+        }
+    }
+
+    public class Room
+    {
+        public enum RoomState
+        {
+            Await,//等待
+            Gaming,//開始
+        }
+
+        public int RoomID = 0;
+        public GamePlay gamePlay;
+        public RoomState state = RoomState.Await;
+
+        public const int Max_Player = 2;
+        public const int Max_Observer = 3;
+
+        public List<Player> Players = new List<Player>();
+        public List<Player> Observers = new List<Player>();
+
+        public Room(int _roomID)
+        {
+            RoomID = _roomID;
+            GamePlay = new GamePlay();
         }
     }
 }

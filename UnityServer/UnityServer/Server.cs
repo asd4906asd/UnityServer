@@ -192,7 +192,7 @@ public static class Server
         _serverTCP.Bind(point);
         _serverUDP.Bind(point);
 
-        //暫時連接佇列的最大長度 0貌似表示為開啟正常
+        //暫時連接佇列的最大長度 0貌似表示為開啟正常 或預設? 或無限大?
         _serverTCP.Listen(0);
         _serverUDP.Listen(0);
 
@@ -228,12 +228,12 @@ public static class Server
         //發送訊息
         try
         {
-
+            _player.tcpSocket.Send(bytes);
         }
-        catch (Exception)
+        catch (Exception e)
         {
-
-            throw;
+            Console.WriteLine(e.Message);
+            _player.OffLine();
         }
     }
 

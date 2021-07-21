@@ -63,9 +63,6 @@ public static class Server
         }
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     private static void _Await()
     {
         Socket tcpClient = null;
@@ -75,9 +72,11 @@ public static class Server
         {
             try
             {
+                //同步等待
                 tcpClient = _serverTCP.Accept();
                 udpClient = _serverUDP.Accept();
 
+                //獲取client端
                 string tcpEndPoint = tcpClient.RemoteEndPoint.ToString();
                 string udpEndPoint = udpClient.RemoteEndPoint.ToString();
 
@@ -88,7 +87,8 @@ public static class Server
                 Console.WriteLine($"{player.tcpSocket.RemoteEndPoint} TCP連線成功");
                 Console.WriteLine($"{player.udpSocket.RemoteEndPoint} UDP連線成功");
 
-                ParameterizedThreadStart receiveMethod = new ParameterizedThreadStart(_Receive);
+                ParameterizedThreadStart tcpReceiveMethod = new ParameterizedThreadStart(_tcpReceive);
+                ParameterizedThreadStart udpReceiveMethod = new ParameterizedThreadStart(_udpReceive);
             }
             catch (Exception e)
             {
@@ -163,6 +163,86 @@ public static class Server
                 data = new byte[0];
                 receive = 0;
             }
+
+            Console.WriteLine($"接收到消息, 房間數量:{rooms.Count}, 玩家數量{players.Count}");
+
+            //執行回調事件
+            if (_callBacks.ContainsKey(type))
+            {
+                CallBack callBack = new CallBack(player, data, _callBacks[type]);
+                //放入回調執行thread
+                _callBackQueue.Enqueue(callBack);
+            }
+        }
+    }
+
+    private static void _udpReceive(object obj)
+    {
+        Player player = obj as Player;
+        Socket udpClient = player.udpSocket;
+
+        while (true)
+        {
+            //解析數據包
+            byte[] data = new byte[4];
+
+            int length = 0;
+            MessageType type = MessageType.None;
+            int receive = 0;
+
+            try
+            {
+                receive = udpClient.Receive(data);//同步接收消息
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線:{e.Message}");
+                player.OffLine();
+                return;
+            }
+
+            //包頭接收不完整
+            if (receive < data.Length)
+            {
+                Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線 包頭接收不完整");
+                player.OffLine();
+                return;
+            }
+
+            using (MemoryStream stream = new MemoryStream(data))
+            {
+                BinaryReader binary = new BinaryReader(stream, Encoding.UTF8);
+                try
+                {
+                    length = binary.ReadInt16();
+                    type = (MessageType)binary.ReadUInt16();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線:{e.Message}");
+                    player.OffLine();
+                    return;
+                }
+            }
+
+            //如果有包頭
+            if (length - 4 > 0)
+            {
+                data = new byte[length - 4];
+                receive = udpClient.Receive(data);
+                if (receive < data.Length)
+                {
+                    Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線");
+                    player.OffLine();
+                    return;
+                }
+            }
+            else
+            {
+                data = new byte[0];
+                receive = 0;
+            }
+
             Console.WriteLine($"接收到消息, 房間數量:{rooms.Count}, 玩家數量{players.Count}");
 
             //執行回調事件
@@ -237,9 +317,21 @@ public static class Server
         }
     }
 
-    public static void udpSend()
+    public static void udpSend(this Player _player, MessageType _type, byte[] _data = null)
     {
+        //封裝訊息
+        byte[] bytes = _Pack(_type, _data);
 
+        //發送訊息
+        try
+        {
+            _player.udpSocket.Send(bytes);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            _player.OffLine();
+        }
     }
 
     /// <summary>

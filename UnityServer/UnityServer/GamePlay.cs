@@ -12,10 +12,10 @@ public class GamePlay
 
     public Baller baller;
 
-    public bool playing;
-    public bool isMove;
+    public bool playing;//遊戲是否進行中
+    public bool isMove;//是否可以移動
 
-    public int score;
+    public int score;//得分
 
     public Baller Calculate(string input)
     {

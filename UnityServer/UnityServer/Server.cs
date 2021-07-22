@@ -274,7 +274,7 @@ public static class Server
 
         //暫時連接佇列的最大長度 0貌似表示為開啟正常 或預設? 或無限大?
         _serverTCP.Listen(0);
-        _serverUDP.Listen(0);
+        //_serverUDP.Listen(0);
 
         Thread t = new Thread(_Await) { IsBackground = true };
         t.Start();

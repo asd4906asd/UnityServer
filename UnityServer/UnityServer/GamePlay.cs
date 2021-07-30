@@ -3,11 +3,6 @@ using UnityServerDLL.VolleyBall;
 
 public class GamePlay
 {
-    public GamePlay()
-    {
-
-    }
-
     public PlayBall ballerState;
 
     public Baller baller;

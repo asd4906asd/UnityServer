@@ -7,7 +7,7 @@
 public class Player
 {
     public Socket tcpSocket;
-    public Socket udpSocket;
+    public UdpClient udpSocket;
 
     public string playerName;
 
@@ -18,7 +18,7 @@ public class Player
     /// <summary>
     /// 建構子
     /// </summary>
-    public Player(Socket _tcp, Socket _udp)
+    public Player(Socket _tcp, UdpClient _udp)
     {
         tcpSocket = _tcp;
         udpSocket = _udp;

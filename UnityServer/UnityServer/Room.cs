@@ -38,8 +38,7 @@ public class Room
             each.ExitRoom();
         }
 
-        
-    }
+        Server.rooms.Remove(RoomID);
 
-    Server.rooms.Remove(RoomID);
+    }
 }

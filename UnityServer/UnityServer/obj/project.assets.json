@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\C#Project\\C#應用程式\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
+      "projectUniqueName": "D:\\Zen\\C#_Project\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
       "projectName": "UnityServer",
-      "projectPath": "D:\\C#Project\\C#應用程式\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
+      "projectPath": "D:\\Zen\\C#_Project\\UnityServer\\UnityServer\\UnityServer\\UnityServer.csproj",
       "packagesPath": "C:\\Users\\asd49\\.nuget\\packages\\",
-      "outputPath": "D:\\C#Project\\C#應用程式\\UnityServer\\UnityServer\\UnityServer\\obj\\",
+      "outputPath": "D:\\Zen\\C#_Project\\UnityServer\\UnityServer\\UnityServer\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\asd49\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -60,7 +60,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.301\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.100\\RuntimeIdentifierGraph.json"
       }
     }
   }

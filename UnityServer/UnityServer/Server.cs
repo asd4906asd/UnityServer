@@ -42,10 +42,15 @@ public static class Server
     public static ConcurrentQueue<CallBack> _callBackQueue;
 
     private static Socket _serverTCP;
+    private static UdpClient _serverUDP;
 
-    
+    private static IPEndPoint udpClientIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
+    private static Thread udpConnect;
+    private static byte[] udpResult = new byte[1024];
+    private static int udpSendCount;
 
-    #region Thread相關
+#region Thread相關
+
     private static void _Callback()
     {
         while (true)
@@ -251,7 +256,8 @@ public static class Server
             }
         }
     }
-    #endregion
+
+#endregion
 
     public static void Start(string ip)
     {
@@ -259,27 +265,26 @@ public static class Server
 
         rooms = new Dictionary<int, Room>();
 
-        _serverTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        //_serverUDP = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        _serverTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);             
 
         players = new List<Player>();
 
         IPEndPoint point = new IPEndPoint(IPAddress.Parse(ip), 62222);
-
-        _serverUDP = new UdpClient(point);
-
+       
         _serverTCP.Bind(point);
-        //_serverUDP.Bind(point);
 
         //暫時連接佇列的最大長度 0貌似表示為開啟正常 或預設? 或無限大?
         _serverTCP.Listen(0);
-        //_serverUDP.Listen(0);
 
         Thread t = new Thread(_Await) { IsBackground = true };
         t.Start();
 
         Thread handle = new Thread(_Callback) { IsBackground = true };
         handle.Start();
+
+
+        _serverUDP = new UdpClient(62222);
+        
     }
 
     /// <summary>
@@ -357,11 +362,7 @@ public static class Server
     }
 
     #region UDP
-    private static UdpClient _serverUDP;
-    private static IPEndPoint udpClientIpEndPoint;
-    private static Thread udpConnect;
-    private static byte[] udpResult = new byte[1024];
-    private static int udpSendCount;
+
 
     private static Dictionary<string, UdpClient> udpClientDic;
 

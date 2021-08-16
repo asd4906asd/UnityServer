@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Collections.Generic;
 
 /// <summary>
@@ -37,6 +38,13 @@ public class MessagePacker
     public MessagePacker Add(ulong value)
     {
         byte[] data = BitConverter.GetBytes(value);
+        bytes.AddRange(data);
+        return this;
+    }
+
+    public MessagePacker Add(string value)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(value);
         bytes.AddRange(data);
         return this;
     }

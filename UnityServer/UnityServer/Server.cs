@@ -42,12 +42,14 @@ public static class Server
     public static ConcurrentQueue<CallBack> _callBackQueue;
 
     private static Socket _serverTCP;
-    private static UdpClient _serverUDP;
 
+    //UDP
+    private static UdpClient _serverUDP;
     private static IPEndPoint udpClientIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
     private static Thread udpConnect;
     private static byte[] udpResult = new byte[1024];
-    private static int udpSendCount;
+    private static int udpSendCount;//發送次數
+    private static Dictionary<string, UdpClientMessage> udpClientMsgDic;//key -> ip+port
 
 #region Thread相關
 
@@ -176,87 +178,7 @@ public static class Server
                 _callBackQueue.Enqueue(callBack);
             }
         }
-    }
-
-    private static void _udpReceive(object obj)
-    {
-        Player player = obj as Player;
-        Socket udpClient = player.udpSocket;
-
-        while (true)
-        {
-            //解析數據包
-            byte[] data = new byte[4];
-
-            int length = 0;
-            MessageType type = MessageType.None;
-            int receive = 0;
-
-            try
-            {
-                receive = udpClient.Receive(data);//同步接收消息
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線:{e.Message}");
-                player.OffLine();
-                return;
-            }
-
-            //包頭接收不完整
-            if (receive < data.Length)
-            {
-                Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線 包頭接收不完整");
-                player.OffLine();
-                return;
-            }
-
-            using (MemoryStream stream = new MemoryStream(data))
-            {
-                BinaryReader binary = new BinaryReader(stream, Encoding.UTF8);
-                try
-                {
-                    length = binary.ReadInt16();
-                    type = (MessageType)binary.ReadUInt16();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線:{e.Message}");
-                    player.OffLine();
-                    return;
-                }
-            }
-
-            //如果有包頭
-            if (length - 4 > 0)
-            {
-                data = new byte[length - 4];
-                receive = udpClient.Receive(data);
-                if (receive < data.Length)
-                {
-                    Console.WriteLine($"{udpClient.RemoteEndPoint}已經斷線");
-                    player.OffLine();
-                    return;
-                }
-            }
-            else
-            {
-                data = new byte[0];
-                receive = 0;
-            }
-
-            Console.WriteLine($"接收到消息, 房間數量:{rooms.Count}, 玩家數量{players.Count}");
-
-            //執行回調事件
-            if (_callBacks.ContainsKey(type))
-            {
-                CallBack callBack = new CallBack(player, data, _callBacks[type]);
-                //放入回調執行thread
-                _callBackQueue.Enqueue(callBack);
-            }
-        }
-    }
-
+    }   
 #endregion
 
     public static void Start(string ip)
@@ -282,11 +204,9 @@ public static class Server
         Thread handle = new Thread(_Callback) { IsBackground = true };
         handle.Start();
 
-
-        _serverUDP = new UdpClient(62222);
-        
+        udpInitial();
     }
-
+    
     /// <summary>
     /// 註冊訊息回調事件
     /// </summary>
@@ -361,161 +281,139 @@ public static class Server
         return packer.Package;
     }
 
-    #region UDP
-
-
-    private static Dictionary<string, UdpClient> udpClientDic;
+#region UDP
 
     public static void udpInitial()
     {
-        IPEndPoint ipEnd = new IPEndPoint(IPAddress.Parse("192.168.88.53"), 62222);
-        _serverUDP = new UdpClient(ipEnd);
-        udpClientDic = new Dictionary<string, UdpClient>();
+        IPEndPoint serverIP = new IPEndPoint(IPAddress.Parse("192.168.88.53"), 62222);
+        _serverUDP = new UdpClient(serverIP);
+        udpClientMsgDic = new Dictionary<string, UdpClientMessage>();
         udpSendCount = 0;
 
+        //定義客戶端
         udpClientIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
-        Console.WriteLine("UDP等待數據連接");
+        Console.WriteLine("等待數據連接");
+        //開啟一個thread連接
+        //udpConnect = new Thread(new ThreadStart(_udpReceive));
+        //ParameterizedThreadStart tcpReceiveMethod = new ParameterizedThreadStart(_tcpReceive);
+        ParameterizedThreadStart udpReceiveMethod = new ParameterizedThreadStart(_udpReceive);
 
-        udpConnect = new Thread(new ThreadStart(_udpReceive()));
-        udpConnect.Start();
-
-        System.Timers.Timer t = new System.Timers.Timer(3000);
-        t.Elapsed += new System.Timers.ElapsedEventHandler();
+        System.Timers.Timer time = new System.Timers.Timer(3000);
+        time.Elapsed += new System.Timers.ElapsedEventHandler(udpSend);
         t.AutoReset = true;
         t.Enabled = true;
     }
 
-    public void SendToClient(object source, System.Timers.ElapsedEventArgs e)
+    public static void udpSendToClietn(object source, System.Timers.ElapsedEventArgs e)
     {
-        Send(GetAllClientMessage());
+        udpSend(GetAllUdpClientMessage());
     }
 
-    public void Send(string data)
+    public static void udpSend(string data)
     {
-        if (m_clientMessageDic == null || m_clientMessageDic.Count == 0)
+        if (udpClientMsgDic == null || udpClientMsgDic.Count == 0)
         {
             return;
         }
         try
         {
-            NetBufferWriter writer = new NetBufferWriter();
-            writer.WriteString(data);
-            byte[] msg = writer.Finish();
-            foreach (var point in m_clientMessageDic)
+            MessagePacker package = new MessagePacker();
+            package.Add(data);
+            byte[] msg = NetworkUtils.Serialize(data);
+            foreach (var point in udpClientMsgDic)
             {
-                Console.WriteLine("send to  " + point.Key + "  " + data);
-                m_udpClient.Send(msg, writer.finishLength, point.Value.clientIPEndPoint);
+                Console.WriteLine("udpSendTo " + point.Key + " " + data);
+                _serverUDP.Send(msg, package.Package.Length, point.Value.clientIPEndPoint);
             }
-            m_sendCount++;
+
+            udpSendCount++;
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
-            Console.WriteLine("send error   " + ex.Message);
+            Console.WriteLine("UdpSendError " + e.Message);
         }
     }
 
-    //服务器接收
-    void Receive()
+    private static void _udpReceive(object obj)
     {
         while (true)
         {
             try
             {
-                m_result = new byte[1024];
-                m_result = m_udpClient.Receive(ref m_clientIpEndPoint);
-                NetBufferReader reader = new NetBufferReader(m_result);
-                string data = reader.ReadString();
-                string clientId = string.Format("{0}:{1}", m_clientIpEndPoint.Address, m_clientIpEndPoint.Port);
+                udpResult = new byte[1024];
+                udpResult = _serverUDP.Receive(ref udpClientIpEndPoint);
 
-                if (data.Equals(SocketDefine.udpConnect))
+                string data = NetworkUtils.Deserialize<string>(udpResult);
+                string clientID = string.Format("{0}:{1}", udpClientIpEndPoint.Address, udpClientIpEndPoint.Port);
+
+                if (data.Equals(UdpDefine.udpDisconnect))
                 {
-                    AddNewClient(clientId, new ClientMessage(clientId, m_clientIpEndPoint, data));
+                    AddNewClient(clientID, new UdpClientMessage(clientID, udpClientIpEndPoint, data));
                 }
-                else if (data.Equals(SocketDefine.udpDisconnect))
+                else if (data.Equals(UdpDefine.udpDisconnect))
                 {
-                    RemoveClient(clientId);
+                    RemoveClient(clientID);
                 }
                 else
                 {
-                    if (m_clientMessageDic != null && m_clientMessageDic.ContainsKey(clientId))
+                    if (udpClientMsgDic != null && udpClientMsgDic.ContainsKey(clientID))
                     {
-                        m_clientMessageDic[clientId].recieveMessage = data;
+                        udpClientMsgDic[clientID].receiveMessage = data;
                     }
                 }
 
-                Console.WriteLine(m_clientIpEndPoint + "  数据内容：{0}", data);
+                Console.WriteLine(udpClientIpEndPoint + "數據內容 : {0}", data);
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Console.WriteLine("receive error   " + ex.Message);
+                Console.WriteLine("receive error " + e.Message);
             }
         }
     }
 
-    //连接关闭
-    void Close()
+    private static void udpClose()
     {
-        //关闭线程
-        if (m_connectThread != null)
+        if (udpConnect != null)
         {
-            m_connectThread.Interrupt();
-            //Thread abort is not supported on this platform.
-            //m_connectThread.Abort();
-            m_connectThread = null;
+            udpConnect.Interrupt();
+            udpConnect = null;
         }
 
-        m_clientMessageDic.Clear();
+        udpClientMsgDic.Clear();
 
-        if (m_udpClient != null)
+        if (_serverUDP != null)
         {
-            m_udpClient.Close();
-            m_udpClient.Dispose();
+            _serverUDP.Close();
+            _serverUDP.Dispose();
         }
-        Console.WriteLine("断开连接");
+
+        Console.WriteLine("UDP斷開連線");
     }
 
-    void AddNewClient(string id, ClientMessage msg)
+    private static void AddNewClient(string ID, UdpClientMessage msg)
     {
-        if (m_clientMessageDic != null && !m_clientMessageDic.ContainsKey(id))
+        if (udpClientMsgDic != null && !udpClientMsgDic.ContainsKey(ID))
         {
-            m_clientMessageDic.Add(id, msg);
+            udpClientMsgDic.Add(ID, msg);
         }
     }
 
-    void RemoveClient(string id)
+    private static void RemoveClient(string ID)
     {
-        if (m_clientMessageDic != null && m_clientMessageDic.ContainsKey(id))
+        if (udpClientMsgDic != null && udpClientMsgDic.ContainsKey(ID))
         {
-            m_clientMessageDic.Remove(id);
+            udpClientMsgDic.Remove(ID);
         }
     }
 
-    string GetAllClientMessage()
+    private static string GetAllUdpClientMessage()
     {
-        string allMsg = "m_sendCount    " + m_sendCount + "\n";
-        foreach (var msg in m_clientMessageDic)
+        string allMsg = "m_SendCount  " + udpSendCount + "\n";
+        foreach (var msg in udpClientMsgDic)
         {
-            allMsg += (msg.Value.clientId + "->" + msg.Value.recieveMessage + "\n");
+            allMsg += (msg.Value.clientID + "->" + msg.Value.receiveMessage + "\n");
         }
         return allMsg;
     }
-
-
-    public static void udpSend(this Player _player, MessageType _type, byte[] _data = null)
-    {
-        //封裝訊息
-        byte[] bytes = _Pack(_type, _data);
-
-        //發送訊息
-        try
-        {
-            _player.udpSocket.Send(bytes);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-            _player.OffLine();
-        }
-    }
-    #endregion
+#endregion
 }
